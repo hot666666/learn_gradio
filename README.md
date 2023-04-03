@@ -1,38 +1,60 @@
-# learn_gradio
+# learn_transformers
 
-https://huggingface.co/spaces/hot6/test_vit
+https://huggingface.co/spaces/hot6/vit_base-dog_breeds
 
-## 메모
+---
 
-- transformers
+# transformers
 
-  - ViTForImageClassification, ViTImageProcessor
-    - google/vit-base-patch16-224
+## model, extractor
 
-  ```python
-    from transformers import ViTImageProcessor, ViTForImageClassification
+- .from_pretrained
 
-    processor = ViTImageProcessor.from_pretrained('google/vit-base-patch16-224')
-    model = ViTForImageClassification.from_pretrained('google/vit-base-patch16-224')
-  ```
+  - extractor에서 return_tensors='pt'를 인자로 넘겨야 텐서 출력
+  - model에서 num_label, id2label, label2id인자로 넘겨야 나중에 model.config. 에서 사용가능
 
-- Dataset과 DataLoader
+## datasets
 
-  - from torch.utils.data import Dataset, DataLoader
-  - Dataset은 하나의 데이터에 대해 처리
-  - DataLoader는 배치크기를 받고 각 데이터에 대해 Dataset 작업을 함
+- load_dataset("imagefolder", data_dir="data/", split="train") split의 경우 원래 데이터구조가 어떤지에 따라 사용
 
-  ```python
-   train_dataset = ImageDataset(train_paths, train_targets, shape=(224, 224))
-   train_loader = create_data_loader(train_dataset, batch_size=64)
-  ```
+  ->
 
-- pytorch gpu 이용
+  - Dataset
+  - DatasetDict
 
-  - device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-  - .to(device)
+- shared
 
-- gradio
+- train_test_split
+
+- with_transform(fn)
+
+### labels
+
+- dataset['train'].features['label']
+  - names
+
+## TrainingArguments
+
+## Trainer
+
+- TrainerCallbacks
+- .train()
+
+## Auto
+
+Trainer를 통해 save_model()하고
+
+AutoFeatureExtractor, AutoModelForImageClassification에서 from_pretrained로
+
+huggingface나 local경로를 전달하면
+
+아마 config.json, preprocessor_config.json, pytorch_mode.bin등을 통해 객체(model, extractor) 생성
+
+- predict
+
+  model(extractor(INPUT)) -> classification의 경우 출력층은 softmax해줘야함
+
+# gradio
 
 ```python
  import gradio as gr
@@ -48,15 +70,11 @@ https://huggingface.co/spaces/hot6/test_vit
 이때 fn이 리턴하는 형태는 dict( 예측 : 확률 )
 
 ```python
-# dict()
-dict((i,i+2) for i in range(3)) # {0: 2, 1: 3, 2: 4}
+TOP_NUM = 5
+
+def predict(image):  # classify_dog_breed(image):
+    inputs = extractor(images=image, return_tensors="pt")['pixel_values']
+    outputs = model(inputs)
+    probs, preds = torch.topk(F.softmax(outputs['logits'].data, dim=-1), TOP_NUM)
+    return dict((model.config.id2label[pred].split('-')[-1], prob) for pred, prob in zip(preds.tolist()[0], probs.tolist()[0]))
 ```
-
-## 참고
-
-- [keras Dataset](https://www.kaggle.com/code/hengzheng/dog-breeds-classifier)
-
-- [vit model](https://huggingface.co/google/vit-base-patch16-224)
-
-- [Gradio](https://www.tanishq.ai/blog/gradio_hf_spaces_tutorial)
-
